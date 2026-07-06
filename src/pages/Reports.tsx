@@ -35,7 +35,6 @@ export const Reports: React.FC = () => {
   const [originalAttachmentIds, setOriginalAttachmentIds] = useState<Set<string>>(new Set());
 
   // ── Homework/exam submission form state (student) ──────────
-  const [showHwForm, setShowHwForm] = useState(false);
   const [hwForm, setHwForm] = useState<{ type: 'homework' | 'exam'; chapter: string; content: string }>({ type: 'homework', chapter: '', content: '' });
   const [hwFormError, setHwFormError] = useState<string | null>(null);
   const [hwSubmitting, setHwSubmitting] = useState(false);
@@ -237,7 +236,6 @@ export const Reports: React.FC = () => {
       });
       setHwForm({ type: 'homework', chapter: '', content: '' });
       setHwAttachments([]);
-      setShowHwForm(false);
     } catch (err: any) {
       setHwFormError(err?.message || t('Something went wrong submitting this. Please try again.', 'حدث خطأ أثناء التسليم. حاول مرة أخرى.'));
     } finally {
@@ -307,16 +305,14 @@ export const Reports: React.FC = () => {
         title={t('Report', 'التقرير')}
         sub={t('Weekly reports, homework, and mock/quiz submissions — all in one place', 'التقارير الأسبوعية والواجبات والامتحانات التجريبية والاختبارات في مكان واحد')}
         action={
-          isStudent
-            ? <Btn variant="primary" onClick={() => setShowHwForm(!showHwForm)}>+ {t('Submit Homework / Exam', 'تسليم واجب / امتحان')}</Btn>
-            : canCreate
-              ? <Btn variant="primary" onClick={() => { setEditingId(null); setForm({ studentId:'', content:'', behavior:'good' }); setAttachments([]); setVoiceUrl(''); setShowForm(!showForm); }}>+ {t('New Report', 'تقرير جديد')}</Btn>
-              : undefined
+          canCreate
+            ? <Btn variant="primary" onClick={() => { setEditingId(null); setForm({ studentId:'', content:'', behavior:'good' }); setAttachments([]); setVoiceUrl(''); setShowForm(!showForm); }}>+ {t('New Report', 'تقرير جديد')}</Btn>
+            : undefined
         }
       />
 
       {/* Homework / exam submission form (student) */}
-      {showHwForm && isStudent && (
+      {isStudent && (
         <Card style={{ marginBottom: 24, border: '1.5px solid #c7d2fe', animation: 'fadeUp 0.3s ease forwards' }}>
           <h3 style={{ margin: '0 0 18px', fontSize: 15, fontWeight: 700, color: '#111827' }}>{t('Submit Homework / Exam','تسليم واجب / امتحان')}</h3>
 
@@ -400,7 +396,7 @@ export const Reports: React.FC = () => {
           )}
 
           <div style={{ display:'flex',gap:10,justifyContent:'flex-end' }}>
-            <Btn onClick={()=>{ setShowHwForm(false); setHwFormError(null); }}>{t('Cancel','إلغاء')}</Btn>
+            <Btn onClick={()=>{ setHwForm({ type: 'homework', chapter: '', content: '' }); setHwAttachments([]); setHwFormError(null); }}>{t('Clear','مسح')}</Btn>
             <Btn variant="primary" onClick={submitHW} disabled={hwSubmitting}>{hwSubmitting ? t('Submitting…','جارٍ التسليم…') : t('Submit','تسليم')}</Btn>
           </div>
         </Card>
