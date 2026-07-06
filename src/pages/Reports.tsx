@@ -34,13 +34,6 @@ export const Reports: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [originalAttachmentIds, setOriginalAttachmentIds] = useState<Set<string>>(new Set());
 
-  // ── Homework/exam submission form state (student) ──────────
-  const [hwForm, setHwForm] = useState<{ type: 'homework' | 'exam'; chapter: string; content: string }>({ type: 'homework', chapter: '', content: '' });
-  const [hwFormError, setHwFormError] = useState<string | null>(null);
-  const [hwSubmitting, setHwSubmitting] = useState(false);
-  const [hwAttachments, setHwAttachments] = useState<HomeworkAttachment[]>([]);
-  const hwFileInputRef = useRef<HTMLInputElement>(null);
-
   // ── Homework feedback state (edit-in-place, teacher/admin) ─
   const [hwCommentForms, setHwCommentForms] = useState<Record<string, string>>({});
   const [hwEditingComment, setHwEditingComment] = useState<Record<string, boolean>>({});
@@ -202,47 +195,6 @@ export const Reports: React.FC = () => {
 
   const bv: Record<string, 'green'|'amber'|'red'> = { excellent:'green', good:'amber', 'needs-improvement':'red' };
 
-  // ── Homework/exam submission helpers (student) ─────────────
-
-  const handleHwFiles = (files: FileList | null) => {
-    if (!files) return;
-    Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const att: HomeworkAttachment = { id: `ha${Date.now()}-${Math.random()}`, name: file.name, url: ev.target?.result as string, type: file.type, size: file.size };
-        setHwAttachments(prev => [...prev, att]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const submitHW = async () => {
-    setHwFormError(null);
-    if (hwForm.type === 'exam' ? !hwForm.chapter.trim() : !hwForm.chapter) {
-      setHwFormError(hwForm.type === 'exam'
-        ? t('Please enter a title for the exam/quiz.', 'يرجى إدخال عنوان للامتحان/الاختبار.')
-        : t('Please select a chapter.', 'يرجى اختيار فصل.'));
-      return;
-    }
-    if (!hwForm.content && hwAttachments.length === 0) {
-      setHwFormError(t('Add a description or attach at least one file.', 'أضف وصفاً أو أرفق ملفاً واحداً على الأقل.'));
-      return;
-    }
-    setHwSubmitting(true);
-    try {
-      await db.createHomework({
-        studentId: currentUser.id, chapter: hwForm.chapter, content: hwForm.content, type: hwForm.type,
-        submissionDate: new Date().toISOString().split('T')[0], attachments: hwAttachments,
-      });
-      setHwForm({ type: 'homework', chapter: '', content: '' });
-      setHwAttachments([]);
-    } catch (err: any) {
-      setHwFormError(err?.message || t('Something went wrong submitting this. Please try again.', 'حدث خطأ أثناء التسليم. حاول مرة أخرى.'));
-    } finally {
-      setHwSubmitting(false);
-    }
-  };
-
   // Homework feedback: adds or edits the single feedback comment on a homework item.
   const addHwComment = async (hwId: string) => {
     const text = hwCommentForms[hwId];
@@ -310,97 +262,6 @@ export const Reports: React.FC = () => {
             : undefined
         }
       />
-
-      {/* Homework / exam submission form (student) */}
-      {isStudent && (
-        <Card style={{ marginBottom: 24, border: '1.5px solid #c7d2fe', animation: 'fadeUp 0.3s ease forwards' }}>
-          <h3 style={{ margin: '0 0 18px', fontSize: 15, fontWeight: 700, color: '#111827' }}>{t('Submit Homework / Exam','تسليم واجب / امتحان')}</h3>
-
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>{t('Type','النوع')}</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {(['homework', 'exam'] as const).map(ty => (
-                <button
-                  key={ty}
-                  onClick={() => setHwForm(f => ({ ...f, type: ty, chapter: '' }))}
-                  style={{
-                    flex: 1, padding: '9px 14px', borderRadius: 9, cursor: 'pointer', fontSize: 13.5, fontWeight: 600, fontFamily: 'inherit',
-                    border: `1.5px solid ${hwForm.type === ty ? '#c7d2fe' : '#e5e7eb'}`,
-                    background: hwForm.type === ty ? '#eef2ff' : '#fff',
-                    color: hwForm.type === ty ? '#4338ca' : '#6b7280',
-                  }}
-                >
-                  {ty === 'homework' ? t('Homework', 'واجب') : t('Exam / Quiz / Mock', 'امتحان / اختبار / محاكاة')}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {hwForm.type === 'homework' ? (
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>{t('Chapter','الفصل')}</label>
-              <select value={hwForm.chapter} onChange={e => setHwForm(f=>({...f,chapter:e.target.value}))} style={{ width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:9,fontSize:14,fontFamily:'inherit',color:'#111827',background:'#fff',outline:'none' }}>
-                <option value="">{t('Select chapter…','اختر فصلاً…')}</option>
-                {[
-                  'Correlation',
-                  'Coding',
-                  'Venn Diagram',
-                  'Tree Diagram',
-                  'Boxplot & Stem and Leaf',
-                  'Continuous Data',
-                  'Histogram',
-                  'Discrete Basic',
-                  'Discrete Tricky',
-                  'Discrete Level El Wash',
-                  'Normal Distribution Basics',
-                  'Normal Distribution Simultaneous & Given That',
-                ].map(ch => <option key={ch} value={ch}>{ch}</option>)}
-              </select>
-            </div>
-          ) : (
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>{t('Exam / Quiz Title','عنوان الامتحان / الاختبار')}</label>
-              <input
-                value={hwForm.chapter}
-                onChange={e => setHwForm(f => ({ ...f, chapter: e.target.value }))}
-                placeholder={t('e.g. Mock Exam 1, Quiz — Chapter 3', 'مثال: امتحان تجريبي 1، اختبار — الفصل 3')}
-                style={{ width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:9,fontSize:14,fontFamily:'inherit',color:'#111827',background:'#fff',outline:'none',boxSizing:'border-box' as const }}
-              />
-            </div>
-          )}
-
-          <Textarea label={t('Your work','عملك')} value={hwForm.content} onChange={e=>setHwForm(f=>({...f,content:e.target.value}))} placeholder={t('Describe what you completed…','اشرح ما أنجزته…')} />
-          <div style={{ marginBottom:14 }}>
-            <label style={{ display:'block', fontSize:13, fontWeight:600, color:'#374151', marginBottom:8 }}>{t('Attach Files (PDF, image, etc.)','إرفاق ملفات (PDF، صورة…)')}</label>
-            <input ref={hwFileInputRef} type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.mp4,.mp3,.zip" style={{ display:'none' }} onChange={e => handleHwFiles(e.target.files)} />
-            <button onClick={() => hwFileInputRef.current?.click()} style={{ padding:'8px 18px', background:'#f0f9ff', border:'1.5px dashed #7dd3fc', borderRadius:9, color:'#0369a1', cursor:'pointer', fontSize:13, fontWeight:600, fontFamily:'inherit' }}>
-              + {t('Add File','إضافة ملف')}
-            </button>
-            {hwAttachments.length > 0 && (
-              <div style={{ marginTop:10, display:'flex', flexWrap:'wrap', gap:8 }}>
-                {hwAttachments.map(a => (
-                  <div key={a.id} style={{ display:'flex', alignItems:'center', gap:6, background:'#f4f6fb', border:'1px solid #e5e7eb', borderRadius:8, padding:'5px 10px', fontSize:12, color:'#374151' }}>
-                    <span style={{ maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.name}</span>
-                    <span style={{ color:'#9ca3af' }}>({fmtSize(a.size)})</span>
-                    <button onClick={() => setHwAttachments(prev => prev.filter(x=>x.id!==a.id))} style={{ background:'none', border:'none', cursor:'pointer', color:'#9ca3af', fontSize:14, padding:0 }}>×</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {hwFormError && (
-            <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:9, padding:'10px 14px', color:'#b91c1c', fontSize:13, marginBottom:14 }}>
-              {hwFormError}
-            </div>
-          )}
-
-          <div style={{ display:'flex',gap:10,justifyContent:'flex-end' }}>
-            <Btn onClick={()=>{ setHwForm({ type: 'homework', chapter: '', content: '' }); setHwAttachments([]); setHwFormError(null); }}>{t('Clear','مسح')}</Btn>
-            <Btn variant="primary" onClick={submitHW} disabled={hwSubmitting}>{hwSubmitting ? t('Submitting…','جارٍ التسليم…') : t('Submit','تسليم')}</Btn>
-          </div>
-        </Card>
-      )}
 
       {/* New / Edit general report form (teacher/admin) */}
       {showForm && canCreate && (
